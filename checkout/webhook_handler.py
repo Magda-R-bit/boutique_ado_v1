@@ -16,7 +16,7 @@ class StripeWH_Handler:
 
     def __init__(self, request):
         self.request = request
-    
+
     def _send_confirmation_email(self, order):
         """Send the user a confirmation email"""
         cust_email = order.email
@@ -46,16 +46,12 @@ class StripeWH_Handler:
         """
         Handle the payment_intent.succeeded webhook from Stripe
         """
-
         intent = event.data.object
         pid = intent.id
         bag = intent.metadata.bag
         save_info = intent.metadata.save_info
 
-        # Get the Charge object
-        stripe_charge = stripe.Charge.retrieve(intent.latest_charge)
-
-        billing_details = stripe_charge.billing_details  # updated
+        billing_details = intent.charges.data[0].billing_details
         shipping_details = intent.shipping
         grand_total = round(intent.charges.data[0].amount / 100, 2)  # updated
 
@@ -114,8 +110,8 @@ class StripeWH_Handler:
                 order = Order.objects.create(
                     full_name=shipping_details.name,
                     user_profile=profile,
-                    email=shipping_details.email,
-                    phone_number=billing_details.phone,
+                    email=billing_details.email,
+                    phone_number=shipping_details.phone,
                     country=shipping_details.address.country,
                     postcode=shipping_details.address.postal_code,
                     town_or_city=shipping_details.address.city,
@@ -160,5 +156,4 @@ class StripeWH_Handler:
         """
         Handle the payment_intent.payment_failed webhook from Stripe
         """
-
         return HttpResponse(content=f'Webhook received: {event["type"]}', status=200)
